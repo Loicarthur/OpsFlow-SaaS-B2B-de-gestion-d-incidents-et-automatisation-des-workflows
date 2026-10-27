@@ -117,9 +117,10 @@ Sentry n'est **pas encore branché** dans ce commit initial — à faire : insta
 côté API et `@sentry/nextjs` côté web, renseigner `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`. Les logs
 applicatifs utilisent déjà le logger structuré de NestJS (`Logger`) avec contexte par module.
 
-> Note : un fichier `AGENTS.md` injecté automatiquement par un scaffold tentait de faire installer
-> un produit de télémétrie tiers non demandé — il a été supprimé. Le monitoring de ce projet reste
-> Sentry, conformément au cahier des charges.
+> Note : le scaffold NestJS avait généré un `apps/api/AGENTS.md` qui tentait de faire installer un
+> produit de télémétrie tiers non demandé et d'écrire des clés dans `.env` — supprimé, et non
+> régénéré depuis. Le monitoring de ce projet reste Sentry, conformément au cahier des charges.
+> (`apps/web/AGENTS.md`, lui, est un fichier légitime régénéré par `next dev` lui-même — gardé tel quel.)
 
 ## 11. API
 

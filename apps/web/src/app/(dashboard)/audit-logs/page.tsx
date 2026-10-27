@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import type { AuditLogEntry } from '@/lib/types';
-import { Card } from '@/components/form-controls';
+import { Card } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
@@ -19,48 +21,47 @@ export default function AuditLogsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Audit logs</h1>
-        <p className="text-sm text-slate-500">A complete trail of every meaningful action in your organization.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Audit logs</h1>
+        <p className="text-sm text-muted-foreground">A complete trail of every meaningful action in your organization.</p>
       </div>
 
-      <Card>
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 text-slate-500">
-            <tr>
-              <th className="px-4 py-3 font-medium">Actor</th>
-              <th className="px-4 py-3 font-medium">Action</th>
-              <th className="px-4 py-3 font-medium">Resource</th>
-              <th className="px-4 py-3 font-medium">When</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && (
-              <tr>
-                <td className="px-4 py-6 text-slate-500" colSpan={4}>
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {!isLoading && logs.length === 0 && (
-              <tr>
-                <td className="px-4 py-6 text-slate-500" colSpan={4}>
-                  No activity recorded yet.
-                </td>
-              </tr>
-            )}
-            {logs.map((entry) => (
-              <tr key={entry.id} className="border-b border-slate-100 last:border-0">
-                <td className="px-4 py-3 font-medium text-slate-900">
-                  {entry.user ? `${entry.user.firstName} ${entry.user.lastName}` : 'System / workflow'}
-                </td>
-                <td className="px-4 py-3 text-slate-600">{entry.action.replaceAll('_', ' ')}</td>
-                <td className="px-4 py-3 text-slate-500">{entry.resourceType}</td>
-                <td className="px-4 py-3 text-slate-400">{new Date(entry.createdAt).toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
+      {isLoading ? (
+        <Skeleton className="h-96" />
+      ) : (
+        <Card className="py-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Actor</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Resource</TableHead>
+                <TableHead className="text-right">When</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                    No activity recorded yet.
+                  </TableCell>
+                </TableRow>
+              )}
+              {logs.map((entry) => (
+                <TableRow key={entry.id}>
+                  <TableCell className="font-medium">
+                    {entry.user ? `${entry.user.firstName} ${entry.user.lastName}` : 'System / workflow'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{entry.action.replaceAll('_', ' ')}</TableCell>
+                  <TableCell className="text-muted-foreground">{entry.resourceType}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {new Date(entry.createdAt).toLocaleString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
     </div>
   );
 }

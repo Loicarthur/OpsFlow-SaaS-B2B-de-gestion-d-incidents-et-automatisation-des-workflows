@@ -1,10 +1,27 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import { UserPlus } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import type { Membership } from '@/lib/types';
 import { RoleBadge } from '@/components/badges';
-import { Button, Card, ErrorText, Field, Select, TextInput } from '@/components/form-controls';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Field, ErrorText } from '@/components/form-field';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth-context';
 import { OrgRole, Permission } from '@opsflow/shared';
 
@@ -44,65 +61,90 @@ export default function TeamPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Team</h1>
-        <p className="text-sm text-slate-500">Manage members and roles for your organization.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Team</h1>
+        <p className="text-sm text-muted-foreground">Manage members and roles for your organization.</p>
       </div>
 
       {canInvite && <InviteForm onInvited={load} />}
 
-      <Card>
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 text-slate-500">
-            <tr>
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Email</th>
-              <th className="px-4 py-3 font-medium">Role</th>
-              {(canChangeRole || canRemove) && <th className="px-4 py-3 font-medium">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
+      <Card className="py-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Role</TableHead>
+              {(canChangeRole || canRemove) && <TableHead className="text-right">Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {isLoading && (
-              <tr>
-                <td className="px-4 py-6 text-slate-500" colSpan={4}>
+              <TableRow>
+                <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
                   Loading…
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
             {members.map((member) => (
-              <tr key={member.id} className="border-b border-slate-100 last:border-0">
-                <td className="px-4 py-3 font-medium text-slate-900">
+              <TableRow key={member.id}>
+                <TableCell className="font-medium">
                   {member.user.firstName} {member.user.lastName}
-                </td>
-                <td className="px-4 py-3 text-slate-600">{member.user.email}</td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell className="text-muted-foreground">{member.user.email}</TableCell>
+                <TableCell>
                   {canChangeRole && member.userId !== session?.user.id ? (
-                    <Select value={member.role} onChange={(e) => changeRole(member.id, e.target.value as OrgRole)}>
-                      {ROLES.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
+                    <Select value={member.role} onValueChange={(v) => changeRole(member.id, v as OrgRole)}>
+                      <SelectTrigger className="w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLES.map((r) => (
+                          <SelectItem key={r} value={r}>
+                            {r}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   ) : (
                     <RoleBadge role={member.role} />
                   )}
-                </td>
+                </TableCell>
                 {(canChangeRole || canRemove) && (
-                  <td className="px-4 py-3">
+                  <TableCell className="text-right">
                     {canRemove && member.userId !== session?.user.id && (
-                      <button
-                        onClick={() => removeMember(member.id)}
-                        className="text-sm font-medium text-red-600 hover:text-red-500"
-                      >
-                        Remove
-                      </button>
+                      <AlertDialog>
+                        <AlertDialogTrigger
+                          render={
+                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                              Remove
+                            </Button>
+                          }
+                        />
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove {member.user.firstName} {member.user.lastName}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              They will immediately lose access to this organization. This can&apos;t be undone from here.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-white hover:bg-destructive/90"
+                              onClick={() => removeMember(member.id)}
+                            >
+                              Remove
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </Card>
     </div>
   );
@@ -133,26 +175,34 @@ function InviteForm({ onInvited }: { onInvited: () => void }) {
   }
 
   return (
-    <Card className="p-5">
-      <form className="flex items-end gap-3" onSubmit={handleSubmit}>
-        <Field label="Invite by email" className="flex-1">
-          <TextInput type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        </Field>
-        <Field label="Role">
-          <Select value={role} onChange={(e) => setRole(e.target.value as OrgRole)}>
-            {ROLES.filter((r) => r !== OrgRole.OWNER).map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Sending…' : 'Send invite'}
-        </Button>
-      </form>
-      {error && <div className="mt-3"><ErrorText>{error}</ErrorText></div>}
-      {success && <p className="mt-3 text-sm text-emerald-600">{success}</p>}
+    <Card>
+      <CardContent>
+        <form className="flex items-end gap-3" onSubmit={handleSubmit}>
+          <Field label="Invite by email" htmlFor="invite-email" className="flex-1">
+            <Input id="invite-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          </Field>
+          <Field label="Role" htmlFor="invite-role">
+            <Select value={role} onValueChange={(v) => setRole(v as OrgRole)}>
+              <SelectTrigger id="invite-role" className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLES.filter((r) => r !== OrgRole.OWNER).map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Button type="submit" disabled={isSubmitting}>
+            <UserPlus />
+            {isSubmitting ? 'Sending…' : 'Send invite'}
+          </Button>
+        </form>
+        {error && <div className="mt-3"><ErrorText>{error}</ErrorText></div>}
+        {success && <p className="mt-3 text-sm text-emerald-600">{success}</p>}
+      </CardContent>
     </Card>
   );
 }

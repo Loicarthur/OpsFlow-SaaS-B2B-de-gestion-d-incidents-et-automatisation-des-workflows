@@ -1,7 +1,18 @@
 'use client';
 
 import { useAuth } from '@/lib/auth-context';
-import { Card } from '@/components/form-controls';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+
+function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-center justify-between py-2.5 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={mono ? 'font-mono text-xs text-foreground' : 'font-medium text-foreground'}>{value}</span>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { session } = useAuth();
@@ -10,33 +21,44 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
-        <p className="text-sm text-slate-500">Your account and organization details.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Settings</h1>
+        <p className="text-sm text-muted-foreground">Your account and organization details.</p>
       </div>
 
-      <Card className="p-5">
-        <h2 className="text-sm font-semibold text-slate-700">Account</h2>
-        <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-          <dt className="text-slate-500">Name</dt>
-          <dd className="text-slate-900">
-            {session.user.firstName} {session.user.lastName}
-          </dd>
-          <dt className="text-slate-500">Email</dt>
-          <dd className="text-slate-900">{session.user.email}</dd>
-          <dt className="text-slate-500">Role</dt>
-          <dd className="text-slate-900">{session.role}</dd>
-        </dl>
-      </Card>
+      <Tabs defaultValue="account" className="w-full">
+        <TabsList>
+          <TabsTrigger value="account">Account</TabsTrigger>
+          <TabsTrigger value="organization">Organization</TabsTrigger>
+        </TabsList>
 
-      <Card className="p-5">
-        <h2 className="text-sm font-semibold text-slate-700">Organization</h2>
-        <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-          <dt className="text-slate-500">Name</dt>
-          <dd className="text-slate-900">{session.organization.name}</dd>
-          <dt className="text-slate-500">Organization ID</dt>
-          <dd className="font-mono text-xs text-slate-500">{session.organization.id}</dd>
-        </dl>
-      </Card>
+        <TabsContent value="account">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold">Your account</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Row label="Name" value={`${session.user.firstName} ${session.user.lastName}`} />
+              <Separator />
+              <Row label="Email" value={session.user.email} />
+              <Separator />
+              <Row label="Role" value={session.role} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="organization">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold">Organization</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Row label="Name" value={session.organization.name} />
+              <Separator />
+              <Row label="Organization ID" value={session.organization.id} mono />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

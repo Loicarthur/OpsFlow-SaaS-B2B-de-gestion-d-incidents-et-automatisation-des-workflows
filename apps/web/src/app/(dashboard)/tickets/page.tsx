@@ -2,10 +2,18 @@
 
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
+import { Plus } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import type { PaginatedResult, Ticket, TicketPriority, TicketStatus } from '@/lib/types';
 import { PriorityBadge, StatusBadge } from '@/components/badges';
-import { Button, Card, ErrorText, Field, Select, TextArea, TextInput } from '@/components/form-controls';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Textarea } from '@/components/ui/textarea';
+import { Field, ErrorText } from '@/components/form-field';
 import { useAuth } from '@/lib/auth-context';
 import { Permission } from '@opsflow/shared';
 
@@ -15,16 +23,16 @@ const PRIORITIES: TicketPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 export default function TicketsPage() {
   const { can } = useAuth();
   const [result, setResult] = useState<PaginatedResult<Ticket> | null>(null);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   async function load() {
     setIsLoading(true);
     const params = new URLSearchParams();
-    if (statusFilter) params.set('status', statusFilter);
-    if (priorityFilter) params.set('priority', priorityFilter);
+    if (statusFilter !== 'ALL') params.set('status', statusFilter);
+    if (priorityFilter !== 'ALL') params.set('priority', priorityFilter);
     const data = await apiClient.get<PaginatedResult<Ticket>>(`/tickets?${params.toString()}`);
     setResult(data);
     setIsLoading(false);
@@ -40,95 +48,122 @@ export default function TicketsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Tickets</h1>
-          <p className="text-sm text-slate-500">All incidents and requests for your organization.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Tickets</h1>
+          <p className="text-sm text-muted-foreground">All incidents and requests for your organization.</p>
         </div>
         {can(Permission.TICKET_CREATE) && (
-          <Button onClick={() => setIsCreateOpen((v) => !v)}>{isCreateOpen ? 'Close' : 'New ticket'}</Button>
+          <Button onClick={() => setIsCreateOpen(true)}>
+            <Plus />
+            New ticket
+          </Button>
         )}
       </div>
 
-      {isCreateOpen && (
-        <CreateTicketForm
-          onCreated={() => {
-            setIsCreateOpen(false);
-            load();
-          }}
-        />
-      )}
+      <CreateTicketSheet
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        onCreated={() => {
+          setIsCreateOpen(false);
+          load();
+        }}
+      />
 
       <div className="flex gap-3">
-        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="">All statuses</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s.replace('_', ' ')}
-            </option>
-          ))}
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? 'ALL')}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="All statuses">
+              {(value: string) => (value === 'ALL' ? 'All statuses' : value.replace('_', ' '))}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All statuses</SelectItem>
+            {STATUSES.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s.replace('_', ' ')}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
-        <Select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-          <option value="">All priorities</option>
-          {PRIORITIES.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
+        <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v ?? 'ALL')}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="All priorities">
+              {(value: string) => (value === 'ALL' ? 'All priorities' : value)}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All priorities</SelectItem>
+            {PRIORITIES.map((p) => (
+              <SelectItem key={p} value={p}>
+                {p}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
       </div>
 
-      <Card>
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 text-slate-500">
-            <tr>
-              <th className="px-4 py-3 font-medium">Title</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Priority</th>
-              <th className="px-4 py-3 font-medium">Assignee</th>
-              <th className="px-4 py-3 font-medium">Updated</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Card className="py-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Priority</TableHead>
+              <TableHead>Assignee</TableHead>
+              <TableHead className="text-right">Updated</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {isLoading && (
-              <tr>
-                <td className="px-4 py-6 text-slate-500" colSpan={5}>
+              <TableRow>
+                <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
                   Loading…
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
             {!isLoading && result?.items.length === 0 && (
-              <tr>
-                <td className="px-4 py-6 text-slate-500" colSpan={5}>
+              <TableRow>
+                <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
                   No tickets found.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
             {result?.items.map((ticket) => (
-              <tr key={ticket.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="px-4 py-3">
-                  <Link href={`/tickets/${ticket.id}`} className="font-medium text-indigo-600 hover:text-indigo-500">
+              <TableRow key={ticket.id}>
+                <TableCell>
+                  <Link href={`/tickets/${ticket.id}`} className="font-medium text-primary hover:underline">
                     {ticket.title}
                   </Link>
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
                   <StatusBadge status={ticket.status} />
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
                   <PriorityBadge priority={ticket.priority} />
-                </td>
-                <td className="px-4 py-3 text-slate-600">
+                </TableCell>
+                <TableCell className="text-muted-foreground">
                   {ticket.assignedTo ? `${ticket.assignedTo.firstName} ${ticket.assignedTo.lastName}` : '—'}
-                </td>
-                <td className="px-4 py-3 text-slate-400">{new Date(ticket.updatedAt).toLocaleDateString()}</td>
-              </tr>
+                </TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  {new Date(ticket.updatedAt).toLocaleDateString()}
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </Card>
     </div>
   );
 }
 
-function CreateTicketForm({ onCreated }: { onCreated: () => void }) {
+function CreateTicketSheet({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: () => void;
+}) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TicketPriority>('MEDIUM');
@@ -143,6 +178,7 @@ function CreateTicketForm({ onCreated }: { onCreated: () => void }) {
       await apiClient.post('/tickets', { title, description, priority });
       setTitle('');
       setDescription('');
+      setPriority('MEDIUM');
       onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create ticket');
@@ -152,28 +188,41 @@ function CreateTicketForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <Card className="p-5">
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-        <Field label="Title">
-          <TextInput required value={title} onChange={(e) => setTitle(e.target.value)} />
-        </Field>
-        <Field label="Description">
-          <TextArea required rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
-        </Field>
-        <Field label="Priority">
-          <Select value={priority} onChange={(e) => setPriority(e.target.value as TicketPriority)}>
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <ErrorText>{error}</ErrorText>
-        <Button type="submit" disabled={isSubmitting} className="self-start">
-          {isSubmitting ? 'Creating…' : 'Create ticket'}
-        </Button>
-      </form>
-    </Card>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>New ticket</SheetTitle>
+          <SheetDescription>Describe the incident or request.</SheetDescription>
+        </SheetHeader>
+        <form id="create-ticket-form" className="flex flex-col gap-4 px-4" onSubmit={handleSubmit}>
+          <Field label="Title" htmlFor="title">
+            <Input id="title" required value={title} onChange={(e) => setTitle(e.target.value)} />
+          </Field>
+          <Field label="Description" htmlFor="description">
+            <Textarea id="description" required rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </Field>
+          <Field label="Priority" htmlFor="priority">
+            <Select value={priority} onValueChange={(v) => setPriority(v as TicketPriority)}>
+              <SelectTrigger id="priority" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITIES.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <ErrorText>{error}</ErrorText>
+        </form>
+        <SheetFooter>
+          <Button type="submit" form="create-ticket-form" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating…' : 'Create ticket'}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

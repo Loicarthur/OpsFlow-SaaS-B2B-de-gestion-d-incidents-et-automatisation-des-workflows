@@ -2,15 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { CheckCircle2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import type { AuditLogEntry, Membership, Ticket, TicketPriority, TicketStatus } from '@/lib/types';
 import { PriorityBadge, StatusBadge } from '@/components/badges';
-import { Button, Card, Field, Select } from '@/components/form-controls';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Field } from '@/components/form-field';
 import { useAuth } from '@/lib/auth-context';
 import { Permission } from '@opsflow/shared';
 
 const STATUSES: TicketStatus[] = ['OPEN', 'IN_PROGRESS', 'WAITING', 'RESOLVED', 'CLOSED'];
 const PRIORITIES: TicketPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+const UNASSIGNED = 'UNASSIGNED';
 
 export default function TicketDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -50,7 +57,7 @@ export default function TicketDetailPage() {
   }
 
   async function assignTo(assigneeId: string) {
-    if (!ticket || !assigneeId) return;
+    if (!ticket || assigneeId === UNASSIGNED) return;
     setIsSaving(true);
     try {
       const updated = await apiClient.post<Ticket>(`/tickets/${ticket.id}/assign`, { assigneeId });
@@ -61,15 +68,26 @@ export default function TicketDetailPage() {
     }
   }
 
-  if (!ticket) return <p className="text-sm text-slate-500">Loading…</p>;
+  if (!ticket) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Skeleton className="h-9 w-80" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <Skeleton className="h-40 lg:col-span-2" />
+          <Skeleton className="h-64" />
+        </div>
+      </div>
+    );
+  }
 
   const canUpdate = can(Permission.TICKET_UPDATE);
   const canAssign = can(Permission.TICKET_ASSIGN);
+  const isDone = ticket.status === 'RESOLVED' || ticket.status === 'CLOSED';
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">{ticket.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{ticket.title}</h1>
         <div className="mt-2 flex items-center gap-2">
           <StatusBadge status={ticket.status} />
           <PriorityBadge priority={ticket.priority} />
@@ -77,76 +95,108 @@ export default function TicketDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="p-5 lg:col-span-2">
-          <h2 className="text-sm font-semibold text-slate-700">Description</h2>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{ticket.description}</p>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Description</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-sm text-muted-foreground">{ticket.description}</p>
+          </CardContent>
         </Card>
 
-        <Card className="flex flex-col gap-4 p-5">
-          <Field label="Status">
-            <Select
-              disabled={!canUpdate || isSaving}
-              value={ticket.status}
-              onChange={(e) => updateField('status', e.target.value)}
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s.replace('_', ' ')}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Priority">
-            <Select
-              disabled={!canUpdate || isSaving}
-              value={ticket.priority}
-              onChange={(e) => updateField('priority', e.target.value)}
-            >
-              {PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Assignee">
-            <Select
-              disabled={!canAssign || isSaving}
-              value={ticket.assignedToId ?? ''}
-              onChange={(e) => assignTo(e.target.value)}
-            >
-              <option value="">Unassigned</option>
-              {members.map((m) => (
-                <option key={m.userId} value={m.userId}>
-                  {m.user.firstName} {m.user.lastName}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          {canUpdate && ticket.status !== 'RESOLVED' && ticket.status !== 'CLOSED' && (
-            <Button onClick={() => updateField('status', 'RESOLVED')} disabled={isSaving}>
-              Mark as resolved
-            </Button>
-          )}
+        <Card>
+          <CardContent className="flex flex-col gap-4">
+            <Field label="Status" htmlFor="status">
+              <Select disabled={!canUpdate || isSaving} value={ticket.status} onValueChange={(v) => v && updateField('status', v)}>
+                <SelectTrigger id="status" className="w-full">
+                  <SelectValue>{(value: string) => value.replace('_', ' ')}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s.replace('_', ' ')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Priority" htmlFor="priority">
+              <Select disabled={!canUpdate || isSaving} value={ticket.priority} onValueChange={(v) => v && updateField('priority', v)}>
+                <SelectTrigger id="priority" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORITIES.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Assignee" htmlFor="assignee">
+              <Select disabled={!canAssign || isSaving} value={ticket.assignedToId ?? UNASSIGNED} onValueChange={(v) => v && assignTo(v)}>
+                <SelectTrigger id="assignee" className="w-full">
+                  <SelectValue>
+                    {(value: string) => {
+                      if (value === UNASSIGNED) return 'Unassigned';
+                      const member = members.find((m) => m.userId === value);
+                      return member ? `${member.user.firstName} ${member.user.lastName}` : 'Unassigned';
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                  {members.map((m) => (
+                    <SelectItem key={m.userId} value={m.userId}>
+                      {m.user.firstName} {m.user.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            {canUpdate && !isDone && (
+              <Button onClick={() => updateField('status', 'RESOLVED')} disabled={isSaving} className="mt-1">
+                <CheckCircle2 />
+                Mark as resolved
+              </Button>
+            )}
+          </CardContent>
         </Card>
       </div>
 
-      <Card className="p-5">
-        <h2 className="text-sm font-semibold text-slate-700">Activity</h2>
-        <ul className="mt-4 flex flex-col gap-3">
-          {auditLogs.length === 0 && <p className="text-sm text-slate-500">No activity recorded yet.</p>}
-          {auditLogs.map((entry) => (
-            <li key={entry.id} className="flex items-center justify-between border-b border-slate-100 pb-2 text-sm last:border-0">
-              <span className="text-slate-600">
-                <span className="font-medium text-slate-900">
-                  {entry.user ? `${entry.user.firstName} ${entry.user.lastName}` : 'System / workflow'}
-                </span>{' '}
-                {entry.action.toLowerCase().replaceAll('_', ' ')}
-              </span>
-              <span className="text-xs text-slate-400">{new Date(entry.createdAt).toLocaleString()}</span>
-            </li>
-          ))}
-        </ul>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {auditLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Actor</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead className="text-right">When</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {auditLogs.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell className="font-medium">
+                      {entry.user ? `${entry.user.firstName} ${entry.user.lastName}` : 'System / workflow'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{entry.action.toLowerCase().replaceAll('_', ' ')}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {new Date(entry.createdAt).toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
       </Card>
     </div>
   );

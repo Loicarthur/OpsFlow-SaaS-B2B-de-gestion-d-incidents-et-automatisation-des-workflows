@@ -1,51 +1,41 @@
 import type { TicketPriority, TicketStatus } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
 
 const STATUS_STYLES: Record<TicketStatus, string> = {
-  OPEN: 'bg-blue-100 text-blue-700',
-  IN_PROGRESS: 'bg-amber-100 text-amber-700',
-  WAITING: 'bg-purple-100 text-purple-700',
-  RESOLVED: 'bg-emerald-100 text-emerald-700',
-  CLOSED: 'bg-slate-200 text-slate-600',
+  OPEN: 'bg-blue-50 text-blue-700 border-blue-200',
+  IN_PROGRESS: 'bg-amber-50 text-amber-700 border-amber-200',
+  WAITING: 'bg-purple-50 text-purple-700 border-purple-200',
+  RESOLVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  CLOSED: 'bg-muted text-muted-foreground border-border',
 };
 
 const PRIORITY_STYLES: Record<TicketPriority, string> = {
-  LOW: 'bg-slate-100 text-slate-600',
-  MEDIUM: 'bg-blue-100 text-blue-700',
-  HIGH: 'bg-orange-100 text-orange-700',
-  CRITICAL: 'bg-red-100 text-red-700',
+  LOW: 'bg-muted text-muted-foreground border-border',
+  MEDIUM: 'bg-blue-50 text-blue-700 border-blue-200',
+  HIGH: 'bg-orange-50 text-orange-700 border-orange-200',
+  CRITICAL: 'bg-red-50 text-red-700 border-red-200',
 };
-
-function Pill({
-  className,
-  children,
-  testId,
-}: {
-  className: string;
-  children: string;
-  testId?: string;
-}) {
-  return (
-    <span
-      data-testid={testId}
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
 
 export function StatusBadge({ status }: { status: TicketStatus }) {
   return (
-    <Pill testId="ticket-status-badge" className={STATUS_STYLES[status]}>
+    <Badge data-testid="ticket-status-badge" variant="outline" className={STATUS_STYLES[status]}>
       {status.replace('_', ' ')}
-    </Pill>
+    </Badge>
   );
 }
 
 export function PriorityBadge({ priority }: { priority: TicketPriority }) {
-  return <Pill className={PRIORITY_STYLES[priority]}>{priority}</Pill>;
+  return (
+    <Badge variant="outline" className={PRIORITY_STYLES[priority]}>
+      {priority}
+    </Badge>
+  );
 }
 
 export function RoleBadge({ role }: { role: string }) {
-  return <Pill className="bg-indigo-100 text-indigo-700">{role}</Pill>;
+  return (
+    <Badge variant="outline" className="bg-accent text-accent-foreground border-accent">
+      {role}
+    </Badge>
+  );
 }

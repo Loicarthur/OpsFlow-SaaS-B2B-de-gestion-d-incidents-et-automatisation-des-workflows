@@ -24,7 +24,8 @@ test.describe('tickets', () => {
     await page.getByRole('button', { name: 'New ticket' }).click();
     await page.getByLabel('Title').fill(ticketTitle);
     await page.getByLabel('Description').fill('Customers cannot complete checkout since 10:00 UTC.');
-    await page.getByLabel('Priority').selectOption('CRITICAL');
+    await page.getByLabel('Priority').click();
+    await page.getByRole('option', { name: 'CRITICAL' }).click();
     await page.getByRole('button', { name: 'Create ticket' }).click();
 
     await expect(page.getByRole('link', { name: ticketTitle })).toBeVisible();

@@ -1,0 +1,262 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MANAGER
+  AGENT
+  VIEWER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum WorkflowTriggerType {
+  TICKET_CREATED
+  TICKET_UPDATED
+  TICKET_STATUS_CHANGED
+  TICKET_PRIORITY_CHANGED
+  SLA_BREACHED
+}
+
+enum WorkflowActionType {
+  ASSIGN_TICKET
+  SEND_NOTIFICATION
+  CHANGE_STATUS
+  CHANGE_PRIORITY
+  START_SLA
+  CLOSE_TICKET
+  CALL_WEBHOOK
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships        Membership[]
+  createdTickets      Ticket[]           @relation("TicketCreatedBy")
+  assignedTickets     Ticket[]           @relation("TicketAssignedTo")
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  sentInvitations     Invitation[]       @relation("InvitationInvitedBy")
+  refreshTokens       RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  tickets     Ticket[]
+  categories  TicketCategory[]
+  workflows   Workflow[]
+  auditLogs   AuditLog[]
+  invitations Invitation[]
+  notifications Notification[]
+
+  @@map("organizations")
+}
+
+model Membership {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           OrgRole      @default(AGENT)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@map("memberships")
+}
+
+model Invitation {
+  id             String           @id @default(uuid())
+  email          String
+  role           OrgRole          @default(AGENT)
+  status         InvitationStatus @default(PENDING)
+  tokenHash      String           @unique
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedById    String
+  invitedBy      User             @relation("InvitationInvitedBy", fields: [invitedById], references: [id])
+  expiresAt      DateTime
+  createdAt      DateTime         @default(now())
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("invitations")
+}
+
+model TicketCategory {
+  id             String       @id @default(uuid())
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tickets        Ticket[]
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, name])
+  @@map("ticket_categories")
+}
+
+model Ticket {
+  id             String         @id @default(uuid())
+  title          String
+  description    String
+  status         TicketStatus   @default(OPEN)
+  priority       TicketPriority @default(MEDIUM)
+
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  categoryId     String?
+  category       TicketCategory? @relation(fields: [categoryId], references: [id])
+
+  createdById    String
+  createdBy      User           @relation("TicketCreatedBy", fields: [createdById], references: [id])
+
+  assignedToId   String?
+  assignedTo     User?          @relation("TicketAssignedTo", fields: [assignedToId], references: [id])
+
+  slaDueAt       DateTime?
+  resolvedAt     DateTime?
+  closedAt       DateTime?
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  auditLogs      AuditLog[]
+  notifications  Notification[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, priority])
+  @@index([assignedToId])
+  @@map("tickets")
+}
+
+model Workflow {
+  id             String   @id @default(uuid())
+  name           String
+  description    String?
+  isActive       Boolean  @default(true)
+  triggerType    WorkflowTriggerType
+  conditions     Json
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actions        WorkflowAction[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId, triggerType, isActive])
+  @@map("workflows")
+}
+
+model WorkflowAction {
+  id         String             @id @default(uuid())
+  workflowId String
+  workflow   Workflow           @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  type       WorkflowActionType
+  config     Json
+  order      Int                @default(0)
+  createdAt  DateTime           @default(now())
+
+  @@index([workflowId])
+  @@map("workflow_actions")
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?        @relation(fields: [userId], references: [id])
+  ticketId       String?
+  ticket         Ticket?      @relation(fields: [ticketId], references: [id])
+  action         String
+  resourceType   String
+  resourceId     String
+  previousState  Json?
+  newState       Json?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([ticketId])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id             String              @id @default(uuid())
+  organizationId String
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticketId       String?
+  ticket         Ticket?             @relation(fields: [ticketId], references: [id])
+  channel        NotificationChannel @default(IN_APP)
+  title          String
+  body           String
+  readAt         DateTime?
+  createdAt      DateTime            @default(now())
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}

@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: opsflow
+          POSTGRES_PASSWORD: opsflow
+          POSTGRES_DB: opsflow
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U opsflow -d opsflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://opsflow:opsflow@localhost:5432/opsflow
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared package
+        run: npm run build --workspace=packages/shared
+
+      - name: Generate Prisma client
+        run: npm --prefix apps/api exec prisma generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run database migrations
+        run: npm --prefix apps/api exec prisma migrate deploy
+
+      - name: Unit & integration tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx --prefix apps/web playwright install --with-deps chromium
+
+      - name: Build shared package
+        run: npm run build --workspace=packages/shared
+
+      - name: Run Playwright E2E tests
+        run: npm run test:e2e --workspace=apps/web

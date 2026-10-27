@@ -1,0 +1,38 @@
+{
+  "name": "opsflow",
+  "private": true,
+  "version": "0.1.0",
+  "description": "OpsFlow - SaaS B2B de gestion d'incidents et automatisation des workflows",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run start:dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=packages/shared && npm run build --workspace=apps/api && npm run build --workspace=apps/web",
+    "lint": "npm run lint --workspace=apps/api && npm run lint --workspace=apps/web",
+    "typecheck": "npm run typecheck --workspace=apps/api && npm run typecheck --workspace=apps/web",
+    "test": "npm run test --workspace=packages/shared && npm run test --workspace=apps/api",
+    "test:e2e": "npm run test:e2e --workspace=apps/web",
+    "prisma:generate": "npm run prisma:generate --workspace=apps/api",
+    "prisma:migrate": "npm run prisma:migrate --workspace=apps/api",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "allowScripts": {
+    "@prisma/engines@6.19.3": true,
+    "@scarf/scarf@1.4.0": true,
+    "bcrypt@6.0.0": true,
+    "msgpackr-extract@3.0.4": true,
+    "prisma@6.19.3": true,
+    "unrs-resolver@1.12.2": true,
+    "@prisma/client@6.19.3": true
+  }
+}

@@ -15,16 +15,31 @@ const PRIORITY_STYLES: Record<TicketPriority, string> = {
   CRITICAL: 'bg-red-100 text-red-700',
 };
 
-function Pill({ className, children }: { className: string; children: string }) {
+function Pill({
+  className,
+  children,
+  testId,
+}: {
+  className: string;
+  children: string;
+  testId?: string;
+}) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}>
+    <span
+      data-testid={testId}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}
+    >
       {children}
     </span>
   );
 }
 
 export function StatusBadge({ status }: { status: TicketStatus }) {
-  return <Pill className={STATUS_STYLES[status]}>{status.replace('_', ' ')}</Pill>;
+  return (
+    <Pill testId="ticket-status-badge" className={STATUS_STYLES[status]}>
+      {status.replace('_', ' ')}
+    </Pill>
+  );
 }
 
 export function PriorityBadge({ priority }: { priority: TicketPriority }) {

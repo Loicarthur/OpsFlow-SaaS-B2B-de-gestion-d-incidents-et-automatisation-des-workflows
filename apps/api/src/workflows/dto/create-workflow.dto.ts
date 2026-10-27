@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsInt, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { WorkflowActionType, WorkflowTriggerType } from '@opsflow/shared';
 
 export class WorkflowActionDto {
@@ -9,6 +9,7 @@ export class WorkflowActionDto {
   type!: WorkflowActionType;
 
   @ApiProperty({ type: Object })
+  @IsObject()
   config!: Record<string, unknown>;
 
   @ApiProperty({ required: false, default: 0 })

@@ -33,7 +33,7 @@ test.describe('tickets', () => {
     await expect(page.getByRole('heading', { name: ticketTitle })).toBeVisible();
 
     await page.getByRole('button', { name: 'Mark as resolved' }).click();
-    await expect(page.getByText('RESOLVED')).toBeVisible();
+    await expect(page.getByTestId('ticket-status-badge')).toHaveText('RESOLVED');
 
     await expect(page.getByText(/ticket status changed/i)).toBeVisible();
   });

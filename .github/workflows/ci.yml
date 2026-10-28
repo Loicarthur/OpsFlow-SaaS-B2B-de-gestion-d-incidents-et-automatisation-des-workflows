@@ -51,7 +51,7 @@ jobs:
         run: npm run build --workspace=packages/shared
 
       - name: Generate Prisma client
-        run: npm --prefix apps/api exec prisma generate
+        run: npm run prisma:generate --workspace=apps/api
 
       - name: Typecheck
         run: npm run typecheck
@@ -60,10 +60,13 @@ jobs:
         run: npm run lint
 
       - name: Run database migrations
-        run: npm --prefix apps/api exec prisma migrate deploy
+        run: npm run prisma:deploy --workspace=apps/api
 
       - name: Unit & integration tests
         run: npm test
+
+      - name: Backend e2e tests
+        run: npm run test:e2e --workspace=apps/api
 
       - name: Build
         run: npm run build

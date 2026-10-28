@@ -12,7 +12,7 @@ FROM deps AS build
 COPY packages/shared packages/shared
 COPY apps/api apps/api
 RUN npm run build --workspace=packages/shared
-RUN npm --prefix apps/api exec prisma generate
+RUN npm run prisma:generate --workspace=apps/api
 RUN npm run build --workspace=apps/api
 
 FROM base AS runtime

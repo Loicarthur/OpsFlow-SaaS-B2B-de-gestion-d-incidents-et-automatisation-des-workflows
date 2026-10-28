@@ -74,6 +74,37 @@ jobs:
   e2e:
     needs: build-and-test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: opsflow
+          POSTGRES_PASSWORD: opsflow
+          POSTGRES_DB: opsflow
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U opsflow -d opsflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://opsflow:opsflow@localhost:5432/opsflow
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
+      CORS_ORIGIN: http://localhost:3000
+      API_PORT: 3001
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+
     steps:
       - uses: actions/checkout@v4
 
@@ -91,5 +122,28 @@ jobs:
       - name: Build shared package
         run: npm run build --workspace=packages/shared
 
+      - name: Generate Prisma client
+        run: npm run prisma:generate --workspace=apps/api
+
+      - name: Run database migrations
+        run: npm run prisma:deploy --workspace=apps/api
+
+      - name: Build and start the API server
+        run: |
+          npm run build --workspace=apps/api
+          nohup node apps/api/dist/main.js > api.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3001/docs > /dev/null && echo "API is up" && exit 0
+            sleep 2
+          done
+          echo "API failed to start in time"; cat api.log; exit 1
+
       - name: Run Playwright E2E tests
         run: npm run test:e2e --workspace=apps/web
+
+      - name: Upload API logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-logs
+          path: api.log
